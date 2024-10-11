@@ -1,6 +1,7 @@
 #include "snake.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h> 
 
 static snakeBody *tail;
@@ -75,6 +76,16 @@ char **MapSpaceCreate(){
 
 /**
  * @author      Exrpid
+ * @brief       动态生成地图缓冲区
+*/
+// FrontBuffer BackBUffer
+char *MapBufferSpaceCreate(){
+    char *buff = (char*)malloc((map_horizontal*(map_vertical+2)+1)*sizeof(char));
+    return buff;
+}
+
+/**
+ * @author      Exrpid
  * @brief       初始化地图 生成空地和墙壁
 */
 void MapInit(char **map){
@@ -101,25 +112,33 @@ void MapInit(char **map){
  * @param       food 食物
  * @param       place 位置
 */
-void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food,int place){
+void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, char *front_buffer, int place){
     // place 为四位整数 前两位为 x 后两位为 y
     head->x = (place / 100) / 2;
     head->y = (place % 100) / 2;
     head->direction = RIGHT;
+    map[head->y][head->x] = 'H';
     printf("----- 蛇头初始化 OK -----");
     body->x = head->x - 1;
     body->y = head->y;
     body->direction = head->direction;
     body->next = NULL;
     tail = body;
+    map[body->y][body->x] = 'B';
     for(int i = 0; i < 2; i++){
         tail->next = Snake_add_new_node(tail);
-        tail = tail->next;    
+        tail = tail->next;
+        map[tail->y][tail->x] = 'B';
     }
     printf("----- 蛇身初始化 OK -----");
     food->x = rand() % (place / 100) + 1;
     food->y = rand() % (place / 100) + 1;
     food->flag = true;
+    map[food->y][food->x] = 'F';
+    printf("----- 食物初始化 OK -----");
+    for(int i = 0; i < map_vertical; i++)
+        strcat(front_buffer,map[i]);
+    printf("----- 初始帧绘制 OK -----");
 }
 
 /**

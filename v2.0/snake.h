@@ -16,6 +16,11 @@ typedef struct SnakeFood snakeFood;
 // extern snakeBody *tail_flag;
 
 /* 函数声明 */
-void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food,int place);
+void MapSizeInit(int lenght_x, int width_y);
+char **MapSpaceCreate();
+char *MapBufferSpaceCreate();
+void MapInit(char **map);
+void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, char *front_buffer, int place);
 snakeBody *Snake_add_new_node(snakeBody *node);
+
 #endif
