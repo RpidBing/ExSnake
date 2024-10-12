@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdbool.h> 
 
 /**
@@ -110,12 +111,16 @@ void MapInit(char **map){
         for(int j = 1; j < map_horizontal - 1; j++){
             map[i][j] = ' ';
         }
+        map[i][map_horizontal] = '\n'; // 添加换行符
+        map[i][map_horizontal + 1] = '\0';    // 添加字符串结束符
     }
     // 填充墙壁
     for(int i = 0; i < map_vertical; i++){
         for(int j = 0; j < map_horizontal; j += (i == 0 || i == map_vertical - 1) ? 1 : map_horizontal - 1){
             map[i][j] = 'W';
         }
+        map[i][map_horizontal] = '\n'; // 添加换行符
+        map[i][map_horizontal + 1] = '\0';    // 添加字符串结束符
     }
 }
 
@@ -141,13 +146,13 @@ void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, ch
     tail = body;
     map[body->y][body->x] = 'B';
     for(int i = 0; i < 2; i++){
-        tail->next = Snake_add_new_node(tail);
+        tail->next = SnakeAddNewNode(tail);
         tail = tail->next;
         map[tail->y][tail->x] = 'B';
     }
     printf("----- 蛇身初始化 OK -----\n");
-    food->x = rand() % map_horizontal + 1;
-    food->y = rand() % map_horizontal + 1;
+    food->x = rand() % (map_horizontal - 1) + 1;
+    food->y = rand() % (map_horizontal - 1) + 1;
     food->flag = true;
     map[food->y][food->x] = 'F';
     printf("----- 食物初始化 OK -----\n");
@@ -208,7 +213,24 @@ void TerminalBack(){
     printf("Windows Terminal Status Back OK\n");
 #else
     tcsetattr(0, TCSANOW, &terminal_orig_status);
-    system("clear");
+    // system("clear");
     printf("Linux Terminal Status Back OK\n");
 #endif
 }
+
+// 用于测试
+// int main(){
+//     MapSizeInit(16,9);
+//     char **map = MapSpaceCreate();
+//     char *map_front_buff = MapBufferSpaceCreate();
+//     MapInit(map);
+//     snakeHead head;
+//     snakeBody body;
+//     snakeFood food;
+//     SnakeInit(&head, &body, &food, map, map_front_buff);
+//     TerminalInit();
+//     printf("%s",map_front_buff);
+//     TerminalBack();
+//     getchar();
+//     return 0;
+// }
