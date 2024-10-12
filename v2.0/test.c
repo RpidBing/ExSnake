@@ -26,5 +26,11 @@ int main(){
     strcat(str_box_all, str_box[0]);
     strcat(str_box_all, str_box[1]);
     printf("%s",str_box_all);
+    printf("-----\n");
+    str_box[0][4] = 'X';
+    str_box_all[1 * 5 - 1] = 'X';
+    for(int i = 0; i < 2; i++)
+        printf("%s",str_box[i]);
+    printf("%s",str_box_all);
     return 0;
 }
