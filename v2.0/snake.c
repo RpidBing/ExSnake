@@ -21,10 +21,11 @@
     static terminal terminal_orig_status;  // 保存原始终端设置
 #endif
 
-static bool buffer_flag;
-static snakeBody *tail = NULL;
+static int direction_stack = 0;
 static int map_horizontal = 0;
 static int map_vertical = 0;
+
+static snakeBody *tail = NULL;
 
 /**
  * @author      Exrpid
@@ -34,6 +35,7 @@ static int map_vertical = 0;
 struct SnakeHead{
     int x;
     int y;
+    int length;
     char direction;
 };
 
@@ -60,18 +62,6 @@ struct SnakeFood{
     int y;
     bool flag;
 };
-
-/**
- * @author      Exrpid
- * @brief       交换两数的值
- * @param       a 变量 1
- * @param       b 变量 2
-*/
-void ThreeCups(int *a, int *b){
-    int cup = *a;
-    *a = *b;
-    *b = cup;
-}
 
 /**
  * @author      Exrpid
@@ -135,7 +125,6 @@ void MapInit(char **map){
         map[i][map_horizontal] = '\n'; // 添加换行符
         map[i][map_horizontal + 1] = '\0';    // 添加字符串结束符
     }
-    buffer_flag = true;
 }
 
 /**
@@ -148,11 +137,12 @@ void MapInit(char **map){
  * @param       front_buffer 初始帧
  * @param       back_buffer  初始帧
 */
-void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, char *front_buffer, char *back_buffer){
+void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, char *map_buffer){
     // place 为四位整数 前两位为 x 后两位为 y
     head->x = map_horizontal / 2;
     head->y = map_vertical  / 2;
     head->direction = RIGHT;
+    head->length = 3;
     map[head->y][head->x] = 'H';
     printf("----- 蛇头初始化 OK -----\n");
     body->x = head->x - 1;
@@ -167,16 +157,16 @@ void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, ch
         map[tail->y][tail->x] = 'B';
     }
     printf("----- 蛇身初始化 OK -----\n");
+    do{
     food->x = rand() % (map_horizontal - 1) + 1;
     food->y = rand() % (map_vertical - 1) + 1;
+    }while(map[food->y][food->x] != ' ');
     food->flag = true;
     map[food->y][food->x] = 'F';
     printf("----- 食物初始化 OK -----\n");
     for(int i = 0; i < map_vertical; i++){
-        strcat(front_buffer,map[i]);
-        strcat(back_buffer,map[i]);
+        strcat(map_buffer,map[i]);
     }
-    buffer_flag = true;
     printf("----- 初始帧绘制 OK -----\n");
 }
 
@@ -244,132 +234,215 @@ void TerminalBack(){
  * @param       body    蛇身
  * @param       food    食物
  * @param       map     地图
- * @param       buffer  渲染缓冲区
+ * @return      true 非死亡碰撞 ; false 死亡碰撞
 */
-bool SnakeCollisionCheckAndMove(snakeHead *head, snakeBody *body, snakeFood *food, char **map){
-    // 碰撞检测
-    // 判蛇头预位移位置 是否有墙壁或食物
-    int future_x, future_y;
-    switch(head->direction){
-        case UP: future_x = head->x; future_y = head->y - 1; break; 
-        case DOWN: future_x = head->x; future_y = head->y + 1; break; 
-        case LEFT: future_x = head->x - 1; future_y = head->y; break; 
-        case RIGHT: future_x = head->x + 1; future_y = head->y; break; 
-        default:break;
+bool SnakeMoveAndCollisionCheck(snakeHead *head, snakeBody *body, snakeFood *food, char** map){
+    // Head move
+    map[head->y][head->x] = ' ';
+    switch (head->direction)
+    {
+        case UP   : head->y -= 1;  break;
+        case DOWN : head->y += 1; break;
+        case LEFT : head->x -= 1; break;
+        case RIGHT: head->x += 1; break;
+        default:break; 
     }
-    // 蛇头 位移 规则
-    if(map[future_y][future_x] == 'W' || map[future_y][future_x] == 'B'){
-        // 游戏失败
+    map[head->y][head->x] = 'H';
+    // Body move
+    snakeBody *ibody = body;
+    while (ibody != NULL) {
+        map[ibody->y][ibody->x] = ' ';
+        switch (ibody->direction) {
+            case UP   : ibody->y -= 1;  break;
+            case DOWN : ibody->y += 1;  break;
+            case LEFT : ibody->x -= 1; break;
+            case RIGHT: ibody->x += 1; break;
+            default: break;
+        }
+        map[ibody->y][ibody->x] = 'B';
+        ibody = ibody->next;
+    }
+    // Wall Collision Check
+    if(head->x == 0 || head->x == map_horizontal - 1 || head->y == 0 || head->y == map_vertical - 1)
         return false;
-    }else if(map[future_y][future_x] == 'F'){
+    // Food Collision Check
+    if(head->x == food->x && head->y == food->y){
         food->flag = false;
-        map[head->y][head->x] = ' ';
-        ThreeCups(&(head->x), &future_x);
-        ThreeCups(&(head->y), &future_y);
-        map[head->y][head->x] = 'H';
-    }else{
-        map[head->y][head->x] = ' ';
-        ThreeCups(&(head->x), &future_x);
-        ThreeCups(&(head->y), &future_y);
-        map[head->y][head->x] = 'H';
+        return true;
     }
-    // 蛇尾 前移
-    int before_tail_x, before_tail_y;
-    switch(tail->direction){
-        case UP: before_tail_x = head->x; before_tail_y = head->y - 1; break; 
-        case DOWN: before_tail_x = head->x; before_tail_y = head->y + 1; break; 
-        case LEFT: before_tail_x = head->x - 1; before_tail_y = head->y; break; 
-        case RIGHT: before_tail_x = head->x + 1; before_tail_y = head->y; break; 
-        default:break;
-    }
-    snakeBody *future_tail;
-    future_tail = body;        
-    for(int i = 0; i < (map_horizontal - 1) * (map_vertical - 1); i++){
-        if(!future_tail->next)
-            future_tail = future_tail->next;
-    }
-    future_tail->next = NULL;
-    map[tail->y][tail->x] = ' ';
-    tail->next = body;
-    body = tail;
-    tail = future_tail;
-    body->direction = head->direction;
-    body->x = future_x;
-    body->y = future_y;
-    map[body->y][body->x] = 'B';
-    if(!food->flag){
-        // 增尾 操作 <在吃果实之后>
-        tail->next = SnakeAddNewNode(tail);
-        tail = tail->next;
-        map[tail->y][tail->x] = 'B';
-        // 增加果实 <在果实被吃后>
-        food->x = rand() % (map_horizontal - 1) + 1;
-        food->y = rand() % (map_vertical - 1) + 1;
-        food->flag = true;
-        map[food->y][food->x] = 'F';
+    // Body Collision Check
+    ibody = body;
+    for (int i = 0; i < head->length; i++)
+    {
+        if(head->x == ibody->x && head->y == ibody->y)
+            return false;
+        if(ibody->next != NULL)
+            ibody = ibody->next;
     }
     return true;
 }
 
 /**
  * @author      Exrpid
- * @brief       地图帧渲染
- * @param       map             地图
- * @param       front_buffer    初缓冲
- * @param       back_buffer     次缓冲
+ * @brief       蛇食物刷新
 */
-void MapFrameWirte(char **map, char *front_buffer, char *back_buffer){
-    if(buffer_flag){
-        for (int i = 0; i < map_vertical; i++)
-            strcat(back_buffer,map[i]);
+void SnakeFoodAndBodyCreate(snakeHead *head, snakeFood *food, char **map){
+    // Food flag check
+    if(food->flag)
         return;
+    // NewBody
+    tail->next = SnakeAddNewNode(tail);
+    tail = tail->next;
+    map[tail->y][tail->x] = 'B';
+    head->length++;
+    // NewFood
+    do{
+    food->x = rand() % (map_horizontal - 1) + 1;
+    food->y = rand() % (map_vertical - 1) + 1;
+    }while(map[food->y][food->x] != ' ');
+    food->flag = true;
+    map[food->y][food->x] = 'F';
+}
+
+/**
+ * @author      Exrpid
+ * @brief       输入检测
+ * @return      输入状态
+*/
+int InPutCheck() {
+#ifdef _WIN32
+    return _kbhit(); // 使用 conio.h 提供的 _kbhit()
+#else
+    struct termios oldt, newt;
+    int oldf;
+    
+    // Linux 的实现
+    tcgetattr(0, &oldt);
+    newt = oldt; 
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(0, TCSANOW, &newt);
+    oldf = fcntl(0, F_GETFL, 0);
+    fcntl(0, F_SETFL, oldf | O_NONBLOCK);
+    
+    int ch = getchar();
+    tcsetattr(0, TCSANOW, &oldt);
+    fcntl(0, F_SETFL, oldf);
+    
+    if(ch != EOF) {
+        ungetc(ch, stdin);
+        return 1; // 有输入
     }
-    for (int i = 0; i < map_vertical; i++)
-        strcat(front_buffer,map[i]);
-    buffer_flag = !buffer_flag;
+    return 0; // 没有输入
+#endif
+// #ifdef _WIN32
+//     return _kbhit(); // 使用 conio.h 提供的 _kbhit()
+// #else
+//     int oldf = fcntl(0, F_GETFL, 0);
+//     fcntl(0, F_SETFL, oldf | O_NONBLOCK);
+    
+//     int ch = getchar();
+//     fcntl(0, F_SETFL, oldf);
+    
+//     if(ch != EOF) {
+//         ungetc(ch, stdin);
+//         return 1; // 有输入
+//     }
+//     return 0; // 没有输入
+// #endif
+}
+
+/**
+ * @author      Exrpid
+ * @brief       按键输入读取
+ * @return      输入字符
+*/
+int KeyInPut() {
+#ifdef _WIN32
+    return _getch();
+#else
+    return getchar();
+#endif
+}
+
+/**
+ * @author      Exrpid
+ * @brief       头部方向改变
+*/
+void SnakeHeadDirectionChange(snakeHead *head, char in){
+    if((head->direction == UP) && in == DOWN)return;
+    if((head->direction == DOWN) && in == UP)return;
+    if((head->direction == LEFT) && in == RIGHT)return;
+    if((head->direction == RIGHT) && in == LEFT)return;
+    direction_stack = head->length;
+    head->direction = in;
     return;
 }
 
 /**
  * @author      Exrpid
- * @brief       地图帧渲染
- * @param       front_buffer    初缓冲
- * @param       back_buffer     次缓冲
+ * @brief       身体方向改变
 */
-void MapDrawOutPut(char *front_buffer, char *back_buffer){
-#ifdef _WIN32
-    system("cls");
-#else
-    system("clear");
-#endif
-    if(buffer_flag){
-        printf("%s",front_buffer);
+void SnakeBodyDirectionChange(snakeHead *head, snakeBody *body){
+    if(direction_stack == 0)
         return;
+    snakeBody *ibody = body;
+    char next_direction = ' ';
+    char before_direction = head->direction;
+    for(int i = 0; i < head->length; i++){
+        next_direction = ibody->direction;
+        ibody->direction = before_direction;
+        before_direction = next_direction;
+        if(ibody->next != NULL)
+            ibody = ibody->next;
     }
-    printf("%s",back_buffer);
-    return;
+    direction_stack--;
 }
 
+/**
+ * @author      Exrpid
+ * @brief       画面绘制
+*/
+void MapScreenDraw(char **map, char *map_buff){
+#ifdef _WIN32
+    system("cls");   // Windows   
+#else
+    system("clear"); // Linux
+#endif
+    memset(map_buff, 0, (map_horizontal * (map_vertical + 2) + 1) * sizeof(char)); // 清空 buffer
+    for(int i = 0; i < map_vertical; i++){
+        strcat(map_buff, map[i]);
+    }
+    printf("%s",map_buff);
+}
 
-
-// // 用于测试
-// int main(){
-//     srand(time(0));
-//     MapSizeInit(16,9);
-//     char **map = MapSpaceCreate();
-//     char *map_front_buff = MapBufferSpaceCreate();
-//     char *map_back_buff = MapBufferSpaceCreate();
-//     MapInit(map);
-//     snakeHead head;
-//     snakeBody body;
-//     snakeFood food;
-//     SnakeInit(&head, &body, &food, map, map_front_buff, map_back_buff);
-//     TerminalInit();
-//     printf("%s",map_front_buff);
-//     usleep(100000);
-//     SnakeCollisionCheckAndMove(&head, &body, &food, map);
-//     printf("%s",map_front_buff);
-//     TerminalBack();
-//     getchar();
-//     return 0; 
-// }
+// 用于测试
+int main(){
+    srand(time(0));
+    MapSizeInit(16,9);
+    char **map = MapSpaceCreate();
+    char *map_buff = MapBufferSpaceCreate();
+    MapInit(map);
+    snakeHead head;
+    snakeBody body;
+    snakeFood food;
+    SnakeInit(&head, &body, &food, map, map_buff);
+    TerminalInit();
+    printf("%s",map_buff);
+    while(1){
+        SnakeBodyDirectionChange(&head, &body);
+        if(InPutCheck()){
+            char controls = KeyInPut();
+            SnakeHeadDirectionChange(&head, controls);
+        }
+        if(SnakeMoveAndCollisionCheck(&head, &body, &food, map)){
+            printf("\n计算完成\n");
+        }else{
+            TerminalBack();
+            break;
+        }
+        SnakeFoodAndBodyCreate(&head, &food, map);
+        MapScreenDraw(map, map_buff);
+        usleep(100000);
+    }
+    return 0; 
+}

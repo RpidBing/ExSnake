@@ -18,8 +18,6 @@ typedef struct SnakeFood snakeFood;
 // extern snakeBody *tail_flag;
 
 /* 函数声明 */
-// 交换两数的值
-void ThreeCups(int *a, int *b);
 // 地图大小初始化
 void MapSizeInit(int lenght_x, int width_y);
 // 地图控制分配初始化
@@ -29,7 +27,7 @@ char *MapBufferSpaceCreate();
 // 地图初始化 填充 空地和墙壁
 void MapInit(char **map);
 // “ 蛇 ” 初始化 蛇头 蛇身 初始画面帧
-void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, char *front_buffer, char *back_buffer);
+void SnakeInit(snakeHead *head, snakeBody *body, snakeFood *food, char **map, char *map_buffer);
 // 新增蛇节点
 snakeBody *SnakeAddNewNode(snakeBody *node);
 // 终端状态初始化
@@ -37,10 +35,16 @@ void TerminalInit();
 // 终端状态复位
 void TerminalBack();
 // 蛇 位移 与 碰撞检测 
-bool SnakeCollisionCheckAndMove(snakeHead *head, snakeBody *body, snakeFood *food, char **map);
-// 地图帧渲染
-void MapFramesWirte(char **map, char *front_buffer, char *back_buffer);
-// 地图画面输出
-void MapDrawOutPut(char **map, char *front_buffer, char *back_buffer);
+bool SnakeMoveAndCollisionCheck(snakeHead *head, snakeBody *body, snakeFood *food, char **map);
+// 食物刷新
+void SnakeFoodAndBodyCreate(snakeHead *head, snakeFood *food, char **map);
+// 输入检测
+int InPutCheck();
+// 按键输入读取
+int KeyInPut();
+// 头部方向改变
+void SnakeHeadDirectionChange(snakeHead *head, char in);
+// 身体方向改变
+void SnakeBodyDirectionChange(snakeHead *head, snakeBody *body);
 
 #endif
